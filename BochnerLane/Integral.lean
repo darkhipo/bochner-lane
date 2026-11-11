@@ -16,11 +16,14 @@ No independence hypothesis appears: independence of the coordinates of `Measure.
 consequence of the product-measure construction, not an assumption.
 
 The `ℝ≥0∞` counterpart of this factorization, and its infinite-index limit, are in
-`BochnerLane/Lintegral.lean`.  The remaining step beyond this file is the infinite index for
-Bochner-valued `f`: replacing `s : Finset ι` by the full index requires a product limit
-`HasProd (fun i => ∫ x, f i x ∂(μ i)) L` together with a.e. multipliability of
-`fun i => f i (x i)`, which supplies the dominating function for
-`MeasureTheory.tendsto_integral_of_dominated_convergence`.
+`BochnerLane/Lintegral.lean`.  The infinite index for Bochner-valued `f` is in
+`BochnerLane/Infinite.lean`: replacing `s : Finset ι` by the full index needs a product limit
+`HasProd (fun i => ∫ x, f i x ∂(μ i)) L`, a.e. multipliability of `fun i => f i (x i)` (so that
+`∏' i, f i (x i)` is defined), and — not implied by either — a dominating integrable function for
+the finite partial products, for `MeasureTheory.tendsto_integral_filter_of_dominated_convergence`.
+A.e. multipliability alone does not supply such a function:
+`BochnerLane.tprod_integral_needs_domination` (`Counterexample.lean`) satisfies it while the
+identity fails.
 -/
 
 module

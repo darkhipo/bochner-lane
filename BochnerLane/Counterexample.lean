@@ -22,7 +22,7 @@ module
 public import Mathlib.MeasureTheory.Integral.Bochner.SumMeasure
 public import Mathlib.Probability.ProductMeasure
 
-open MeasureTheory
+open MeasureTheory Filter
 
 open scoped ENNReal Topology BigOperators
 
@@ -131,5 +131,121 @@ theorem sup_form_lintegral_finset_prod_is_false :
     simp only [fairCoin_lintegral_indicator, max_eq_left, le_refl]
   rw [hL, hR]
   exact two_inv_mul_three_ne_one
+
+/-! ### The Bochner infinite index does not survive without domination
+
+`BochnerLane/Infinite.lean` proves the Bochner identity under one extra hypothesis: an integrable
+function bounding all finite partial products.  This section shows that the hypothesis is not
+removable — the remaining hypotheses (a.e. multipliability, and a product limit for the
+one-dimensional integrals) do not suffice, even with every factor integrable on a probability
+space.
+
+The mechanism is the classical failure of uniform integrability.  With one coordinate type
+`Bool` and the fair coin, the function `2 · 1_{true}` has integral `1`, so the partial products
+over `{0, …, n-1}` all have integral `1`; but the set on which *every* coordinate is `true` has
+measure zero, so the product is `0` almost everywhere and its integral is `0`.  Mass escapes at
+infinity, exactly as for the martingale `2ⁿ · 1_{first n all true}`. -/
+
+/-- The one-coordinate function `2 · 1_{true}` on the fair coin. -/
+private noncomputable def coinDouble : Bool → ℝ := fun b => if b then 2 else 0
+
+private lemma integrable_coinDouble : Integrable (coinDouble : Bool → ℝ) fairCoin := by
+  refine Integrable.of_bound ?_ 2 ?_
+  · measurability
+  · filter_upwards with b
+    cases b <;> norm_num [coinDouble]
+
+private lemma integral_coinDouble : ∫ b : Bool, coinDouble b ∂fairCoin = 1 := by
+  rw [fairCoin, integral_smul_measure, smul_eq_mul]
+  simp only [integral_count, Fintype.sum_bool, coinDouble, Bool.false_eq_true, ite_true,
+    ite_false, add_zero]
+  norm_num
+
+/-- The fair coin of a singleton. -/
+private lemma fairCoin_singleton : fairCoin {true} = (2 : ℝ≥0∞)⁻¹ := by
+  rw [fairCoin, Measure.smul_apply, smul_eq_mul, ← Finset.coe_singleton,
+    Measure.count_apply_finset]
+  simp
+
+/-- The coordinates of `Measure.infinitePi` that are `true` on a finite set form a cylinder whose
+measure is the corresponding finite product of coin flips. -/
+private lemma infinitePi_cylinder_allTrue (n : ℕ) :
+    (Measure.infinitePi fun _ : ℕ => fairCoin)
+        (Set.pi (Finset.range n) fun _ : ℕ => ({true} : Set Bool))
+      = (2 : ℝ≥0∞)⁻¹ ^ n := by
+  rw [Measure.infinitePi_pi (fun _ : ℕ => fairCoin) (fun i _ => measurableSet_singleton true),
+    Finset.prod_const, Finset.card_range, fairCoin_singleton]
+
+/-- Almost every point of the infinite product of fair coins has a coordinate that is `false`:
+the set of points that are `true` in every coordinate is contained in cylinders of measure
+`2⁻ⁿ` for every `n`. -/
+private lemma infinitePi_allTrue_eq_zero :
+    (Measure.infinitePi fun _ : ℕ => fairCoin) {x : ℕ → Bool | ∀ i, x i = true} = 0 := by
+  have hmono : ∀ n : ℕ,
+      (Measure.infinitePi fun _ : ℕ => fairCoin) {x : ℕ → Bool | ∀ i, x i = true}
+        ≤ (2 : ℝ≥0∞)⁻¹ ^ n := by
+    intro n
+    refine (measure_mono ?_).trans_eq (infinitePi_cylinder_allTrue n)
+    intro x hx i _
+    exact hx i
+  refine le_antisymm ?_ zero_le
+  refine ge_of_tendsto
+    (ENNReal.tendsto_pow_atTop_nhds_zero_of_lt_one (by norm_num : (2 : ℝ≥0∞)⁻¹ < 1)) ?_
+  exact Eventually.of_forall hmono
+
+/-- If a point has a `false` coordinate, the product of the coordinate functions converges to `0`:
+every finite set containing that coordinate contributes the factor `0`. -/
+private lemma hasProd_coinDouble_of_false {x : ℕ → Bool} (hx : ∃ i, x i = false) :
+    HasProd (fun i : ℕ => coinDouble (x i)) 0 := by
+  obtain ⟨i, hi⟩ := hx
+  have hz : (fun s : Finset ℕ => ∏ j ∈ s, coinDouble (x j)) =ᶠ[atTop] (fun _ => 0) := by
+    filter_upwards [Filter.eventually_atTop.2 ⟨{i}, fun s hs => hs⟩] with s hs
+    exact Finset.prod_eq_zero (Finset.mem_of_subset hs (Finset.mem_singleton_self i))
+      (by simp [coinDouble, hi])
+  exact Tendsto.congr' hz.symm tendsto_const_nhds
+
+/-- **The a.e.-multipliability hypothesis does not supply a dominating function.**
+
+Take the infinite product of fair coins and the coordinate functions `f i = 2 · 1_{x i = true}`.
+Every hypothesis of the Bochner product-integral identity other than domination holds:
+
+* each `f i` is integrable with `∫ f i = 1`, so `HasProd (fun i => ∫ f i) 1`;
+* the coordinates are a.e. multipliable — some coordinate is `false` a.e., and then the product
+  is `0` (a coordinate equal to `0` makes every finite product containing it vanish).
+
+Yet `∏' i, f i (x i) = 0` almost everywhere, so `∫ ∏' i, f i (x i) = 0 ≠ 1`.  The identity fails,
+and the missing ingredient is uniform integrability — which is what the dominating function in
+`BochnerLane.integral_tprod_eq_tprod_integral_of_dominated` supplies. -/
+theorem tprod_integral_needs_domination :
+    ∃ f : ℕ → Bool → ℝ,
+      (∀ i, Integrable (f i) fairCoin) ∧
+        (∀ᵐ x ∂(Measure.infinitePi fun _ : ℕ => fairCoin), Multipliable fun i => f i (x i)) ∧
+          HasProd (fun i => ∫ x, f i x ∂fairCoin) 1 ∧
+            (∫ x : ℕ → Bool, ∏' i, f i (x i)
+              ∂(Measure.infinitePi fun _ : ℕ => fairCoin)) = 0 := by
+  classical
+  refine ⟨fun _ => coinDouble, fun _ => integrable_coinDouble, ?_, ?_, ?_⟩
+  · have hae : ∀ᵐ x ∂(Measure.infinitePi fun _ : ℕ => fairCoin),
+        x ∉ {x : ℕ → Bool | ∀ i, x i = true} :=
+      compl_mem_ae_iff.2 infinitePi_allTrue_eq_zero
+    filter_upwards [hae] with x hx
+    push Not at hx
+    obtain ⟨i, hi⟩ := hx
+    exact ⟨0, hasProd_coinDouble_of_false ⟨i, by cases h : x i <;> simp_all⟩⟩
+  · have hfun : (fun i : ℕ => ∫ x, (fun _ => coinDouble) i x ∂fairCoin) = fun _ => 1 :=
+      funext fun _ => integral_coinDouble
+    rw [hfun]
+    exact hasProd_one
+  · have hzero : (fun x : ℕ → Bool => ∏' i, coinDouble (x i))
+        =ᵐ[Measure.infinitePi fun _ : ℕ => fairCoin] fun _ => 0 := by
+      have hae : ∀ᵐ x ∂(Measure.infinitePi fun _ : ℕ => fairCoin),
+          x ∉ {x : ℕ → Bool | ∀ i, x i = true} :=
+        compl_mem_ae_iff.2 infinitePi_allTrue_eq_zero
+      filter_upwards [hae] with x hx
+      push Not at hx
+      obtain ⟨i, hi⟩ := hx
+      exact (hasProd_coinDouble_of_false ⟨i, by cases h : x i <;> simp_all⟩).tprod_eq
+    rw [integral_congr_ae hzero]
+    simp
 
 end BochnerLane
