@@ -306,3 +306,66 @@ carries one theorem instead of two.  Named remainder to locate first: the pin's 
 `∫_{g ≥ C} g → 0` (`Integrable.tendsto_setIntegral_*` family — the increment-4 grep for
 `tendsto_setIntegral_ge_atTop_zero` in `Integral/Bochner/*.lean` and `Integral/*.lean` returned
 nothing, so the name must be found before the proof is attempted, not after).
+
+## 18. Increment 5 — domination ⟹ uniform integrability, machine-checked (2026-11-11)
+
+**Verdict: PROVED.**  `BochnerLane.uniformIntegrable_finset_prod_infinitePi_of_dominated`:
+`(hg : Integrable g (Measure.infinitePi μ)) → (∀ᵐ x, ∀ s, ‖∏ i ∈ s, f i (x i)‖ ≤ g x) →
+UniformIntegrable (fun s x => ∏ i ∈ s, f i (x i)) 1 (Measure.infinitePi μ)` — exactly the task's
+statement, axiom-clean.
+
+**The blocker resolved honestly: the pin's lemma does not exist in Mathlib.**  Exhaustive search
+(`tendsto_setIntegral_ge_atTop_zero`, `tendsto_lintegral_*_atTop`, absolute-continuity families in
+`Integral/Bochner/*`, `UnifTight.lean`, `PeakFunction.lean`, `eLpNorm`-tail forms) found no lemma
+stating `∫_{g ≥ C} g → 0`: `UnifTight` is small-*set* tightness, `PeakFunction` is
+approximations-of-identity, and the absolute-continuity statements bound integrals over small
+sets, not large values.  So the file proves the tail limit itself:
+
+* `MeasureTheory.tendsto_integral_indicator_ge_atTop_zero` — for `g` integrable,
+  `∫ x, {x | C ≤ g x}.indicator g x ∂μ → 0` along `atTop` on `ℕ`, by
+  `tendsto_integral_filter_of_dominated_convergence` with bound `|g|`, after passing to a strongly
+  measurable representative of `g` (level sets of an a.e.-measurable function need not be
+  measurable — the representative swap is load-bearing, not decoration).  Phrased with indicator
+  functions: no `MeasurableSet` hypothesis, and that is the form `uniformIntegrable_of` consumes.
+* `MeasureTheory.uniformIntegrable_of_ae_dominated` — a.e.-strong-measurable family + a.e.
+  domination by one integrable `g` ⟹ `UniformIntegrable F 1 μ`.  Per family member the tail
+  `eLpNorm` is a.e.-congruent to the representative's indicator, monotone into the honest
+  `{x | C ≤ g' x}.indicator g'` (`eLpNorm_mono_enorm_ae`), unfolded through
+  `eLpNorm_one_eq_lintegral_enorm` + `ofReal_integral_eq_lintegral_ofReal`, and closed by the tail
+  threshold via `ofReal_le_of_le_toReal`.  The `ℝ≥0`-threshold bookkeeping needed
+  `NNReal.coe_le_coe` + `coe_nnnorm` conversion; the Mathlib `SeminormedGroup`-only
+  `ofReal_norm'` twin forced the additive `ofReal_norm`.
+
+**One-theorem package, as instructed.**  `integral_tprod_eq_tprod_integral_of_dominated` keeps its
+exact `Targets.lean`-compatible statement but is now a two-line convenience wrapper:
+`integral_tprod_eq_tprod_integral_of_uniformIntegrable` fed by
+`uniformIntegrable_finset_prod_infinitePi_of_dominated`.  The Vitali-form theorem is the primary
+exchange; its docstring and the module docstring no longer call the implication "prose".  The
+three counterexamples are untouched (statement and hash unchanged).
+
+## 19. Receipts (increment 5)
+
+- **determinism**: two clean rebuilds (`rm -rf .lake/build/lib/lean/BochnerLane*` +
+  `.lake/build/ir/BochnerLane*`, then `lake build`), both exit `0`, progress lines and their
+  `(N.Ns)` timings stripped, remaining logs byte-identical — sha256
+  `8a1e8fa46e7b39745b931fba00c5a66edf6ce8991e5eb8b21814a6ef610579ca`, both runs; 3141 jobs,
+  `Build completed successfully`.
+- **axioms**: `#print axioms` on all **eighteen** theorems printed by `CheckAxioms.lean` (three new
+  entries: the tail lemma, the abstract domination lemma, the specialization) →
+  `[propext, Classical.choice, Quot.sound]` only (house triple).
+- **purity**: `grep -rn "sorry\|admit\|native_decide"` over `BochnerLane/*.lean` and
+  `BochnerLane.lean` → no hits.
+- **PR copy refreshed**: `docs/pr/Infinite.lean` is a byte-identical copy of the lane file
+  (sha256 `c6dae54f7a98c62a6b7d5bb2e9911a79993c27b716cc7514e6fc0d9345022bdf`, both paths); the other
+  three package files are unchanged from increment 4 and still hash as recorded in `docs/PR.md`.
+  `docs/PR.md` updated: new hash, item 8 (the three new theorems), "eighteen theorems", the
+  "implication is prose" scope remark replaced by the machine-checked statement.
+
+## 20. Single next action (increment 6)
+
+The one line of this file still claiming prose-by-necessity is gone; the remaining increment-5
+list item worth machine-checking is the counterexample's *non*-uniform-integrability computation
+(§5's prose: the family's tail integral is identically `1` for every `C`).  Concretely: prove
+`tprod_integral_needs_domination`'s family fails `UnifIntegrable`/`UniformIntegrable` — via
+`unifIntegrable_iff` instantiated at the all-true cylinders — closing the last "stated, not
+checked" loop between the two exchange theorems and the witness that excludes it.

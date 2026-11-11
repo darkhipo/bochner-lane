@@ -12,7 +12,7 @@ of the compiled lane files, sha256 below).
 |---|---|---|
 | `Lintegral.lean` | `Mathlib/MeasureTheory/Integral/Pi.lean` (finite index) + `Mathlib/Probability/ProductMeasure.lean`, `section Integral` (infinite index) | `lintegral_fin_nat_prod_eq_prod`, `lintegral_fintype_prod_eq_prod`, `aemeasurable_finset_prod_infinitePi`, `lintegral_finset_restrict_prod_eq_prod`, `lintegral_iSup_finset_prod_eq`, `lintegral_iInf_finset_prod_eq` |
 | `Integral.lean` | `Mathlib/Probability/ProductMeasure.lean`, `section Integral` | `integral_finset_restrict_prod_eq_prod` (Bochner, finite prefix) |
-| `Infinite.lean` | `Mathlib/Probability/ProductMeasure.lean`, `section Integral` | `aestronglyMeasurable_finset_prod_infinitePi`, `integral_tprod_eq_tprod_integral_of_dominated` (Bochner, infinite index, domination form), `integral_tprod_eq_tprod_integral_of_uniformIntegrable` (Bochner, infinite index, Vitali form), and their `∃ L` forms |
+| `Infinite.lean` | `Mathlib/Probability/ProductMeasure.lean`, `section Integral` | `aestronglyMeasurable_finset_prod_infinitePi`, `tendsto_integral_indicator_ge_atTop_zero`, `uniformIntegrable_of_ae_dominated`, `integral_tprod_eq_tprod_integral_of_uniformIntegrable` (Bochner, infinite index, Vitali form — the primary exchange), `uniformIntegrable_finset_prod_infinitePi_of_dominated`, `integral_tprod_eq_tprod_integral_of_dominated` (domination form, derived from the Vitali form), and their `∃ L` forms |
 | `Counterexample.lean` | `Mathlib/Probability/ProductMeasure.lean` (beside the theorems it delimits) | `independence_free_form_is_false`, `sup_form_lintegral_finset_prod_is_false`, `tprod_integral_needs_domination` |
 
 ## What the PR adds, against what exists at this pin
@@ -71,7 +71,20 @@ Added here:
    statement through a monotone cofinal sequence of finite sets
    (`Filter.exists_seq_monotone_tendsto_atTop_atTop`, from `[Countable ι]`); both limits are read off
    along that sequence, so no enumeration of `ι` is constructed.
-8. **Three refutations**, shipped because they are cheap and because each one delimits a hypothesis:
+8. **`tendsto_integral_indicator_ge_atTop_zero`, `uniformIntegrable_of_ae_dominated`, and
+   `uniformIntegrable_finset_prod_infinitePi_of_dominated`** — the tail lemma Mathlib lacks and its
+   consequence.  For `g` integrable, `∫ x, {x | C ≤ g x}.indicator g x ∂μ → 0` along `atTop` on `ℕ`
+   (dominated convergence along that filter, `|g|` as bound, after passing to a strongly measurable
+   representative — level sets of an a.e.-measurable function need not be measurable, and the
+   indicator phrasing avoids the `MeasurableSet` hypothesis `Integrable g` alone cannot supply).
+   Consequently a family of a.e.-strongly-measurable functions dominated a.e. by one integrable
+   real `g` is uniformly integrable at exponent 1: every tail `eLpNorm` is bounded by the tail of
+   `g` through the a.e. pointwise bound `{x | C ≤ ‖F i x‖₊} ⊆ {x | C ≤ g x}`, and
+   `uniformIntegrable_of` consumes exactly that.  Specialized to the partial-product family this
+   feeds (6)'s domination form, which is thereby *derived from* (7) rather than proved in parallel —
+   the package carries one exchange theorem (the Vitali form) plus the machine-checked
+   domination ⟹ uniform-integrability implication.
+9. **Three refutations**, shipped because they are cheap and because each one delimits a hypothesis:
    * `independence_free_form_is_false` — the identity does not survive dropping the product-measure
      construction (it fails at two coordinates on a single measure space);
    * `sup_form_lintegral_finset_prod_is_false` — `⨆ s : Finset ι, ∏ i ∈ s, f i (x i)` is the
@@ -101,7 +114,7 @@ Added here:
   pointwise domination by an integrable `g` (6), and uniform integrability of the partial-product
   family (7), in which no dominating function appears in the hypotheses at all.  Domination implies
   uniform integrability (the tail integrals are bounded by `∫_{g ≥ C} g → 0`), so (7) is the weaker
-  hypothesis of the two — that implication is prose here, not a theorem of the package.  The
+  hypothesis of the two — that implication is machine-checked in the package (item 8), not prose.  The
   witnessing counterexample defeats the *bare* target by violating uniform integrability (its tail
   integrals are identically `1`, by the machine-checked cylinder mass `2^{-#s}`), so (7)'s hypothesis
   genuinely excludes it rather than sidestepping it.
@@ -137,9 +150,9 @@ naming.
 ## Verification
 
 * two clean rebuilds of the package: exit `0`, error-stripped logs byte-identical
-  (sha256 of the timing-stripped log `6a02e815b05b4ff8b98d7db0026d3d260b54ce4e0a9896a4faee699f3d70eb9c`,
+  (sha256 of the timing-stripped log `8a1e8fa46e7b39745b931fba00c5a66edf6ce8991e5eb8b21814a6ef610579ca`,
   both runs);
-* `#print axioms` on all fifteen theorems printed by the lane's `CheckAxioms.lean`:
+* `#print axioms` on all eighteen theorems printed by the lane's `CheckAxioms.lean`:
   `[propext, Classical.choice, Quot.sound]` only;
 * `grep -rn "sorry\|admit\|native_decide"` over the sources: no hits.
 
@@ -149,5 +162,5 @@ naming.
 |---|---|
 | `docs/pr/Lintegral.lean` | `d88b966851ba22ad5152fafffaace49f379d91164f0f2c7282571ff383e0e18e` |
 | `docs/pr/Integral.lean` | `ca7667c5618e12e2488d36dadfb84ea00cc5e2996753f86eb850f2c2fbbd1df2` |
-| `docs/pr/Infinite.lean` | `c6d833d37d6187c26503b2779ff316c2e4051676d4d6d3df85cd06a8f441d083` |
+| `docs/pr/Infinite.lean` | `c6dae54f7a98c62a6b7d5bb2e9911a79993c27b716cc7514e6fc0d9345022bdf` |
 | `docs/pr/Counterexample.lean` | `bcfa8ba11cc74f73c651ada8c2a8aabf7e1590e3440acfca13223302246fe94a` |

@@ -20,6 +20,10 @@ import BochnerLane.Targets
 -- the Bochner infinite index, uniform-integrability (Vitali) form
 #print axioms BochnerLane.integral_tprod_eq_tprod_integral_of_uniformIntegrable
 #print axioms BochnerLane.exists_integral_tprod_eq_tprod_integral_of_uniformIntegrable
+-- the tail lemma Mathlib lacks, and domination ⟹ uniform integrability (increment 5)
+#print axioms MeasureTheory.tendsto_integral_indicator_ge_atTop_zero
+#print axioms MeasureTheory.uniformIntegrable_of_ae_dominated
+#print axioms BochnerLane.uniformIntegrable_finset_prod_infinitePi_of_dominated
 -- the three refutations
 #print axioms BochnerLane.independence_free_form_is_false
 #print axioms BochnerLane.sup_form_lintegral_finset_prod_is_false
