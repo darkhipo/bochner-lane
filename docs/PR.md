@@ -12,7 +12,7 @@ of the compiled lane files, sha256 below).
 |---|---|---|
 | `Lintegral.lean` | `Mathlib/MeasureTheory/Integral/Pi.lean` (finite index) + `Mathlib/Probability/ProductMeasure.lean`, `section Integral` (infinite index) | `lintegral_fin_nat_prod_eq_prod`, `lintegral_fintype_prod_eq_prod`, `aemeasurable_finset_prod_infinitePi`, `lintegral_finset_restrict_prod_eq_prod`, `lintegral_iSup_finset_prod_eq`, `lintegral_iInf_finset_prod_eq` |
 | `Integral.lean` | `Mathlib/Probability/ProductMeasure.lean`, `section Integral` | `integral_finset_restrict_prod_eq_prod` (Bochner, finite prefix) |
-| `Infinite.lean` | `Mathlib/Probability/ProductMeasure.lean`, `section Integral` | `aestronglyMeasurable_finset_prod_infinitePi`, `integral_tprod_eq_tprod_integral_of_dominated` (Bochner, infinite index), and its `∃ L` form |
+| `Infinite.lean` | `Mathlib/Probability/ProductMeasure.lean`, `section Integral` | `aestronglyMeasurable_finset_prod_infinitePi`, `integral_tprod_eq_tprod_integral_of_dominated` (Bochner, infinite index, domination form), `integral_tprod_eq_tprod_integral_of_uniformIntegrable` (Bochner, infinite index, Vitali form), and their `∃ L` forms |
 | `Counterexample.lean` | `Mathlib/Probability/ProductMeasure.lean` (beside the theorems it delimits) | `independence_free_form_is_false`, `sup_form_lintegral_finset_prod_is_false`, `tprod_integral_needs_domination` |
 
 ## What the PR adds, against what exists at this pin
@@ -62,7 +62,16 @@ Added here:
    dominated convergence along `atTop` on `Finset ι`, with the integrals of the partial products
    computed by (5).  `[Countable ι]` is needed for that filter to be countably generated (and for
    the a.e. limit to be a measurable limit).
-7. **Three refutations**, shipped because they are cheap and because each one delimits a hypothesis:
+7. **`integral_tprod_eq_tprod_integral_of_uniformIntegrable`** — the same identity with the
+   *weaker* uniformity hypothesis: uniform integrability of the family of finite partial products
+   `fun s : Finset ι => fun x => ∏ i ∈ s, f i (x i)` at `p = 1`, and no dominating function at all.
+   Exchanged with Vitali's convergence theorem (`tendsto_Lp_finite_of_tendsto_ae`, `p = 1`, the
+   product measure being a probability space) and closed through the filter-generic
+   `MeasureTheory.tendsto_integral_of_L1'`.  The `Finset ι` net is met by Vitali's `ℕ`-indexed
+   statement through a monotone cofinal sequence of finite sets
+   (`Filter.exists_seq_monotone_tendsto_atTop_atTop`, from `[Countable ι]`); both limits are read off
+   along that sequence, so no enumeration of `ι` is constructed.
+8. **Three refutations**, shipped because they are cheap and because each one delimits a hypothesis:
    * `independence_free_form_is_false` — the identity does not survive dropping the product-measure
      construction (it fails at two coordinates on a single measure space);
    * `sup_form_lintegral_finset_prod_is_false` — `⨆ s : Finset ι, ∏ i ∈ s, f i (x i)` is the
@@ -87,17 +96,27 @@ Added here:
   domination needed (`ℝ≥0∞` products are monotone limits, and `lintegral_iSup_directed` /
   `lintegral_iInf_directed_of_measurable` are total on `ℝ≥0∞`).  For Bochner-valued `f` two things
   are genuinely extra, and both are in (6): a.e. multipliability (so that `∏' i, f i (x i)` is
-  defined) and domination of the finite partial products by an integrable function (so that the
-  limit may pass through the integral).
+  defined) and a *uniformity* condition on the finite partial products (so that the limit may pass
+  through the integral).  Two such conditions are proved, and they are stated differently:
+  pointwise domination by an integrable `g` (6), and uniform integrability of the partial-product
+  family (7), in which no dominating function appears in the hypotheses at all.  Domination implies
+  uniform integrability (the tail integrals are bounded by `∫_{g ≥ C} g → 0`), so (7) is the weaker
+  hypothesis of the two — that implication is prose here, not a theorem of the package.  The
+  witnessing counterexample defeats the *bare* target by violating uniform integrability (its tail
+  integrals are identically `1`, by the machine-checked cylinder mass `2^{-#s}`), so (7)'s hypothesis
+  genuinely excludes it rather than sidestepping it.
 * **The domination hypothesis is stated over all finite partial products, not over `∏' i, ‖f i‖`.**
   A bound on the a.e. product `∏' i, ‖f i (x i)‖` would not do: for factors below `1` the finite
   partial products *decrease*, so `∏ i ∈ s, ‖f i‖` is bounded below, not above, by the infinite
   product.  This is the same monotonicity obstruction that forces the two regimes in
   `Lintegral.lean`, seen on the Bochner side.
 * **Not claimed:** any unconditional infinite-product theorem for sign-changing Bochner-valued `f`
-  without a domination hypothesis (false, `tprod_integral_needs_domination`), and any statement
-  about `ℝ≥0∞` products of factors that cross `1`.  For such families the infinite product is
-  legitimately a two-sided limit, and a directed monotone convergence theorem does not apply.
+  with *no* uniformity hypothesis on the partial products — false,
+  `tprod_integral_needs_domination`, and the same witness is not uniformly integrable either, so
+  even under uniform integrability the bare hypotheses never suffice.  Also not claimed: any
+  statement about `ℝ≥0∞` products of factors that cross `1`.  For such families the infinite
+  product is legitimately a two-sided limit, and a directed monotone convergence theorem does not
+  apply.
 * **No new dependencies.**  The package imports only `Probability/ProductMeasure.lean`,
   `MeasureTheory/Integral/Pi.lean`, `MeasureTheory/Integral/Lebesgue/Sub.lean` (for the infimum
   form), `MeasureTheory/Measure/QuasiMeasurePreserving.lean`, `MeasureTheory/Integral/
@@ -118,9 +137,9 @@ naming.
 ## Verification
 
 * two clean rebuilds of the package: exit `0`, error-stripped logs byte-identical
-  (sha256 of the stripped log `453befdc1fb0fe212844f8e9913795dc133af702f10a784cf3fd4e891c8e7330`,
+  (sha256 of the timing-stripped log `6a02e815b05b4ff8b98d7db0026d3d260b54ce4e0a9896a4faee699f3d70eb9c`,
   both runs);
-* `#print axioms` on all thirteen theorems printed by the lane's `CheckAxioms.lean`:
+* `#print axioms` on all fifteen theorems printed by the lane's `CheckAxioms.lean`:
   `[propext, Classical.choice, Quot.sound]` only;
 * `grep -rn "sorry\|admit\|native_decide"` over the sources: no hits.
 
@@ -130,5 +149,5 @@ naming.
 |---|---|
 | `docs/pr/Lintegral.lean` | `d88b966851ba22ad5152fafffaace49f379d91164f0f2c7282571ff383e0e18e` |
 | `docs/pr/Integral.lean` | `ca7667c5618e12e2488d36dadfb84ea00cc5e2996753f86eb850f2c2fbbd1df2` |
-| `docs/pr/Infinite.lean` | `cdebf40b601de70862521cdf044ee7f2ce1aece63bef1929b0e2246c87a271b3` |
+| `docs/pr/Infinite.lean` | `c6d833d37d6187c26503b2779ff316c2e4051676d4d6d3df85cd06a8f441d083` |
 | `docs/pr/Counterexample.lean` | `bcfa8ba11cc74f73c651ada8c2a8aabf7e1590e3440acfca13223302246fe94a` |

@@ -208,3 +208,101 @@ be stated over `Finset ι`-indexed families directly, and the `L¹ → ∫` brid
 sorry-free, same receipt trio, `docs/PR.md` and the `docs/pr/` copy refreshed, and the counterexample
 verified to violate UI (it does: `tprod_integral_needs_domination` is the witness, since a UI family
 with integrals `1` cannot converge a.e. to `0`).
+
+---
+
+# Increment 4 — the uniform-integrability (Vitali) form
+
+## 12. Verdict
+
+**Proved.** `BochnerLane.integral_tprod_eq_tprod_integral_of_uniformIntegrable`: same conclusion
+`∫ x, ∏' i, f i (x i) ∂(infinitePi μ) = L` from the bare target's hypotheses (a.e.-strong
+measurability, integrability, a.e. multipliability, `HasProd` of the one-dimensional integrals)
+**plus** uniform integrability of the family of finite partial products
+
+```
+hUI : UniformIntegrable (fun s : Finset ι => fun x => ∏ i ∈ s, f i (x i)) 1 (Measure.infinitePi μ)
+```
+
+and no dominating function anywhere.  Plus its `∃ L` companion
+`exists_integral_tprod_eq_tprod_integral_of_uniformIntegrable`.  Sorry-free, axiom-clean.
+
+The hypothesis is the `Finset ι`-net form, not the `range n` form: it is the same family the
+dominated form quantifies over (`∀ s : Finset ι`), so the two theorems differ only in the
+uniformity condition.
+
+## 13. What the pin actually had, measured (§11 predicted it; this is the measurement)
+
+| Piece | At this pin | Verdict |
+|---|---|---|
+| UI of the net ⟹ `L¹` convergence | `tendsto_Lp_finite_of_tendsto_ae` (line 540) is **`ℕ`-indexed** | **missing for nets** |
+| `L¹` convergence ⟹ `∫` convergence | `MeasureTheory.tendsto_integral_of_L1'` (line 388) is **filter-generic** (`{l : Filter ι}`) | present |
+| UI + a.e. convergence (net) ⟹ limit is integrable | `UniformIntegrable.memLp_of_ae_tendsto` (line 998), general `u` with `[NeBot u] [IsCountablyGenerated u]` | present, and used |
+| cofinal `ℕ` sequence in `atTop` on `Finset ι` | `Filter.exists_seq_monotone_tendsto_atTop_atTop`, from `[Countable ι]` | present |
+| `[IsFiniteMeasure]` | the product measure is a probability measure | free |
+
+So **exactly one bridge was missing** — the net-shaped Vitali step — and it is not missing in a way
+that blocks the theorem: a monotone cofinal sequence `xs : ℕ → Finset ι` converts the net statement
+into the `ℕ`-indexed one, and both limits (the `L¹`/integral limit and the `HasProd` limit) are read
+off along the same sequence.  `UniformIntegrable.comp` does not exist at this pin, so the restriction
+to the sequence is built inline from `UnifIntegrable.comp` plus the `eLpNorm` bound field.
+
+## 14. Proof shape (`BochnerLane/Infinite.lean`: 10-line statement, 50-line proof)
+
+1. `aestronglyMeasurable_finset_prod_infinitePi` gives measurability of every partial product;
+   `hmul.mono fun x hx => hx.hasProd` gives a.e. convergence along `atTop` on `Finset ι`.
+2. `hUI.memLp_of_ae_tendsto (u := atTop)` — the *net-generic* half of the UI API — makes the limit
+   `∏' i, f i (x i)` `MemLp 1`.
+3. `exists_seq_monotone_tendsto_atTop_atTop (Finset ι)` gives `xs`; `hUI` restricts to
+   `fun n => ∏ i ∈ xs n, f i (x i)`, and a.e. convergence restricts with it.
+4. Vitali (`tendsto_Lp_finite_of_tendsto_ae`, `p = 1`) gives `eLpNorm (P_{xs n} - ∏') 1 → 0`.
+5. `tendsto_integral_of_L1'` upgrades that to `∫ P_{xs n} → ∫ ∏'`; `integral_finset_restrict_prod_eq_prod`
+   rewrites each `∫ P_{xs n}`, and `HasProd` composed with `xs` gives the same sequence converging to
+   `L`.  Uniqueness in `ℝ` closes it.
+
+## 15. The witness, and what it does to the UI hypothesis
+
+`tprod_integral_needs_domination` (`Counterexample.lean`) is cited in both docstrings as the
+UI-violating witness.  Its partial products are `2^{#s}` on the all-true cylinder, whose measure is
+`2^{-#s}` (`infinitePi_cylinder_allTrue`, machine-checked), so for every threshold `C` and every
+`#s` with `2^{#s} ≥ C`
+
+    ∫_{‖∏ i ∈ s, f i‖ ≥ C} ‖∏ i ∈ s, f i‖ = 2^{#s} · 2^{-#s} = 1,
+
+and the sup over `s` of the tail integral is `1` for **every** `C` instead of tending to `0`: the
+family is not uniformly integrable.  The UI hypothesis therefore excludes exactly the family that
+refutes the bare target — it is not a hypothesis that dodges the counterexample, it is the condition
+the counterexample violates.  (The arithmetic is prose in the docstrings; the cylinder mass it rests
+on is the machine-checked lemma above.  The converse implication — domination ⟹ UI — is recorded as
+prose in the same place, explicitly marked as not machine-checked in this package.)
+
+## 16. Receipts (increment 4)
+
+- **determinism**: two clean rebuilds (`rm -rf .lake/build/lib/lean/BochnerLane*` +
+  `.lake/build/ir/BochnerLane*`, then `lake build`), both exit `0`, progress lines and their
+  `(N.Ns)` timings stripped, remaining logs byte-identical — sha256
+  `6a02e815b05b4ff8b98d7db0026d3d260b54ce4e0a9896a4faee699f3d70eb9c`, both runs; 3141 jobs,
+  `Build completed successfully`.
+- **axioms**: `#print axioms` on all **fifteen** theorems printed by `CheckAxioms.lean` (two new
+  entries) → `[propext, Classical.choice, Quot.sound]` only (house triple).
+- **purity**: `grep -rn "sorry\|admit\|native_decide"` over `BochnerLane/*.lean` and
+  `BochnerLane.lean` → no hits.
+- **PR copy refreshed**: `docs/pr/Infinite.lean` is a byte-identical copy of the lane file
+  (sha256 `c6d833d37d6187c26503b2779ff316c2e4051676d4d6d3df85cd06a8f441d083`, both paths); the other
+  three package files are unchanged from increment 3 and still hash as recorded in `docs/PR.md`.
+
+## 17. Single next action (increment 5)
+
+Machine-check the one implication that is still prose on both sides of the two exchange theorems:
+**domination ⟹ uniform integrability**.  Concretely, prove in `Infinite.lean`
+
+    (hg : Integrable g ν) (hdom : ∀ᵐ x ∂ν, ∀ s : Finset ι, ‖∏ i ∈ s, f i (x i)‖ ≤ g x)
+      → UniformIntegrable (fun s => fun x => ∏ i ∈ s, f i (x i)) 1 ν
+
+via `uniformIntegrable_of` (tail bound: `{‖P s‖ ≥ C} ⊆ {g ≥ C}`, so the tail `eLpNorm` is at most
+`∫⁻_{g ≥ C} g`, which tends to `0` by the absolute continuity of `∫ · g`), then derive
+`integral_tprod_eq_tprod_integral_of_dominated` **as a corollary** of the UI form so the package
+carries one theorem instead of two.  Named remainder to locate first: the pin's lemma for
+`∫_{g ≥ C} g → 0` (`Integrable.tendsto_setIntegral_*` family — the increment-4 grep for
+`tendsto_setIntegral_ge_atTop_zero` in `Integral/Bochner/*.lean` and `Integral/*.lean` returned
+nothing, so the name must be found before the proof is attempted, not after).

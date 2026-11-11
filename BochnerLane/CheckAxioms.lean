@@ -17,6 +17,9 @@ import BochnerLane.Targets
 #print axioms MeasureTheory.aestronglyMeasurable_finset_prod_infinitePi
 #print axioms BochnerLane.integral_tprod_eq_tprod_integral_of_dominated
 #print axioms BochnerLane.exists_integral_tprod_eq_tprod_integral_of_dominated
+-- the Bochner infinite index, uniform-integrability (Vitali) form
+#print axioms BochnerLane.integral_tprod_eq_tprod_integral_of_uniformIntegrable
+#print axioms BochnerLane.exists_integral_tprod_eq_tprod_integral_of_uniformIntegrable
 -- the three refutations
 #print axioms BochnerLane.independence_free_form_is_false
 #print axioms BochnerLane.sup_form_lintegral_finset_prod_is_false
